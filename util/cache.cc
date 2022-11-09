@@ -18,14 +18,14 @@ namespace leveldb {
 Cache::~Cache() {}
 
 namespace {
-
+// 整个文件没看懂
 // LRU cache implementation
-//
+
 // Cache entries have an "in_cache" boolean indicating whether the cache has a
 // reference on the entry.  The only ways that this can become false without the
 // entry being passed to its "deleter" are via Erase(), via Insert() when
 // an element with a duplicate key is inserted, or on destruction of the cache.
-//
+
 // The cache keeps two linked lists of items in the cache.  All items in the
 // cache are in one list or the other, and never both.  Items still referenced
 // by clients but erased from the cache are in neither list.  The lists are:
@@ -38,6 +38,11 @@ namespace {
 // when they detect an element in the cache acquiring or losing its only
 // external reference.
 
+// 1. 有两个list，lru_ list和in_use_ list。lru_ list存储的是即将要淘汰的entries，
+//    in_use_ list存储的是正在被引用的entries，这些entries暂时不会被淘汰。
+// 2. lru_ list 和 in_use_ list 都是双向循环列表。
+
+// 就是一个kv值
 // An entry is a variable length heap-allocated structure.  Entries
 // are kept in a circular doubly linked list ordered by access time.
 struct LRUHandle {
@@ -48,10 +53,15 @@ struct LRUHandle {
   LRUHandle* prev;
   size_t charge;  // TODO(opt): Only allow uint32_t?
   size_t key_length;
-  bool in_cache;     // Whether entry is in the cache.
+  bool in_cache;     // Whether entry is in the cache. 
+                     // 只要这个entry在任意一个list中（无论是lru_ list, 还是in_use_ list），这个就是true。
+  
   uint32_t refs;     // References, including cache reference, if present.
-  uint32_t hash;     // Hash of key(); used for fast sharding and comparisons
-  char key_data[1];  // Beginning of key
+                     // 在lru_ list中，就是1。在in_use_ list中，就会大于1。
+  
+  uint32_t hash;     // Hash of key(); used for fast sharding and comparisons （快速分片和比较）
+  char key_data[1];  // Beginning of key. 为何不直接使用char* ：
+                     // 1. 使用char*要占用4个字节。 2. 使用char*无法使得struct和后续的内容连续存放。
 
   Slice key() const {
     // next is only equal to this if the LRU handle is the list head of an
@@ -62,11 +72,14 @@ struct LRUHandle {
   }
 };
 
+// 没看懂，先简单理解成一个hash表吧
 // We provide our own simple hash table since it removes a whole bunch
 // of porting hacks and is also faster than some of the built-in hash
 // table implementations in some of the compiler/runtime combinations
 // we have tested.  E.g., readrandom speeds up by ~5% over the g++
 // 4.4.3's builtin hashtable.
+// 开链法：一个数组，数组的元素是一个链表的头结点（或指向链表的头结点），
+// 每个链表元素是一个cache entry（也即是这里的LRUHandle）
 class HandleTable {
  public:
   HandleTable() : length_(0), elems_(0), list_(nullptr) { Resize(); }
@@ -105,9 +118,9 @@ class HandleTable {
  private:
   // The table consists of an array of buckets where each bucket is
   // a linked list of cache entries that hash into the bucket.
-  uint32_t length_;
-  uint32_t elems_;
-  LRUHandle** list_;
+  uint32_t length_;  // 数组总长度
+  uint32_t elems_;  // 实际使用的数组元素个数（这些元素不一定连续存放在数组中）
+  LRUHandle** list_; // 可以理解成（LRUHandle*）* list_，list数组，数组元素是LRUHandle*。
 
   // Return a pointer to slot that points to a cache entry that
   // matches key/hash.  If there is no such cache entry, return a
@@ -148,6 +161,7 @@ class HandleTable {
 };
 
 // A single shard of sharded cache.
+// 多分片缓存中的一个分片
 class LRUCache {
  public:
   LRUCache();

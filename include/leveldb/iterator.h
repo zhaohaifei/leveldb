@@ -21,6 +21,7 @@
 
 namespace leveldb {
 
+// 这个Iterator的目的就是提供给调用者一个接口，使得调用者可以注册一些销毁函数。（暂定）
 class LEVELDB_EXPORT Iterator {
  public:
   Iterator();

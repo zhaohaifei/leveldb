@@ -15,6 +15,7 @@ namespace {
 
 typedef Iterator* (*BlockFunction)(void*, const ReadOptions&, const Slice&);
 
+// 两级Iterator。第一级遍历index block，找到对应的data block。第二级遍历对应的data block。
 class TwoLevelIterator : public Iterator {
  public:
   TwoLevelIterator(Iterator* index_iter, BlockFunction block_function,
@@ -61,11 +62,11 @@ class TwoLevelIterator : public Iterator {
   void* arg_;
   const ReadOptions options_;
   Status status_;
-  IteratorWrapper index_iter_;
-  IteratorWrapper data_iter_;  // May be nullptr
+  IteratorWrapper index_iter_; // 遍历index block。
+  IteratorWrapper data_iter_;  // May be nullptr //遍历对应的data block。
   // If data_iter_ is non-null, then "data_block_handle_" holds the
   // "index_value" passed to block_function_ to create the data_iter_.
-  std::string data_block_handle_;
+  std::string data_block_handle_; // index block的一个value。
 };
 
 TwoLevelIterator::TwoLevelIterator(Iterator* index_iter,

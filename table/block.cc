@@ -109,7 +109,9 @@ class Block::Iter : public Iterator {
 
     // ParseNextKey() starts at the end of value_, so set value_ accordingly
     uint32_t offset = GetRestartPoint(index);
-    value_ = Slice(data_ + offset, 0);
+    value_ = Slice(data_ + offset, 0); // RestartPoint只有key，没有value？(有value)
+                                       // 这里似乎比较trick，直接把key_的起始位置赋给value_,
+                                       // 通过ParseNextKey()再修正key_和value_?
   }
 
  public:

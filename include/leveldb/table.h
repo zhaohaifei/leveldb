@@ -72,8 +72,10 @@ class LEVELDB_EXPORT Table {
   Status InternalGet(const ReadOptions&, const Slice& key, void* arg,
                      void (*handle_result)(void* arg, const Slice& k,
                                            const Slice& v));
-
+  
+  // 读取sstable的meta index block。
   void ReadMeta(const Footer& footer);
+  // 读取meta index block中的filter。
   void ReadFilter(const Slice& filter_handle_value);
 
   Rep* const rep_;

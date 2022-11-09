@@ -71,6 +71,8 @@ class MemTableIterator : public Iterator {
   std::string tmp_;  // For passing to EncodeKey
 };
 
+// Memtable将自身的一个成员变量，赋给MemTableIterator。
+// 而MemTableIterator又是Memtable的友元。
 Iterator* MemTable::NewIterator() { return new MemTableIterator(&table_); }
 
 void MemTable::Add(SequenceNumber s, ValueType type, const Slice& key,

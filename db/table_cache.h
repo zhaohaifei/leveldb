@@ -19,6 +19,7 @@ namespace leveldb {
 
 class Env;
 
+// 对sstable进行缓存。可以通过file_number指定缓存一个sstable。
 class TableCache {
  public:
   TableCache(const std::string& dbname, const Options& options, int entries);
@@ -35,16 +36,19 @@ class TableCache {
   // underlies the returned iterator.  The returned "*tableptr" object is owned
   // by the cache and should not be deleted, and is valid for as long as the
   // returned iterator is live.
+  // 指向某一个sstable的一个kv。
   Iterator* NewIterator(const ReadOptions& options, uint64_t file_number,
                         uint64_t file_size, Table** tableptr = nullptr);
 
   // If a seek to internal key "k" in specified file finds an entry,
   // call (*handle_result)(arg, found_key, found_value).
+  // 从sstable中get一个kv，并将这个kv传递给handle_result。
   Status Get(const ReadOptions& options, uint64_t file_number,
              uint64_t file_size, const Slice& k, void* arg,
              void (*handle_result)(void*, const Slice&, const Slice&));
 
   // Evict any entry for the specified file number
+  // 删除这个sstable
   void Evict(uint64_t file_number);
 
  private:
@@ -53,7 +57,7 @@ class TableCache {
   Env* const env_;
   const std::string dbname_;
   const Options& options_;
-  Cache* cache_;
+  Cache* cache_;  // 这里才是真正的缓存。默认使用LRU缓存一个或多个sstable？
 };
 
 }  // namespace leveldb

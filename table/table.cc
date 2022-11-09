@@ -150,6 +150,7 @@ static void ReleaseBlock(void* arg, void* h) {
 
 // Convert an index iterator value (i.e., an encoded BlockHandle)
 // into an iterator over the contents of the corresponding block.
+// index_value指的是index block中的一条kv对的value, 通过这个value可以找到对应data block。
 Iterator* Table::BlockReader(void* arg, const ReadOptions& options,
                              const Slice& index_value) {
   Table* table = reinterpret_cast<Table*>(arg);
@@ -222,6 +223,7 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& k, void* arg,
     FilterBlockReader* filter = rep_->filter;
     BlockHandle handle;
     if (filter != nullptr && handle.DecodeFrom(&handle_value).ok() &&
+        // 怀疑有问题
         !filter->KeyMayMatch(handle.offset(), k)) {
       // Not found
     } else {
@@ -241,6 +243,7 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& k, void* arg,
   return s;
 }
 
+// 暂未看懂
 uint64_t Table::ApproximateOffsetOf(const Slice& key) const {
   Iterator* index_iter =
       rep_->index_block->NewIterator(rep_->options.comparator);

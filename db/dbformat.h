@@ -128,6 +128,12 @@ class InternalFilterPolicy : public FilterPolicy {
   bool KeyMayMatch(const Slice& key, const Slice& filter) const override;
 };
 
+// InternalKey是一个字符串，这个字符串包含三个部分：
+//                            Slice user_key;
+//                            SequenceNumber sequence;
+//                            ValueType type;
+// ParsedInternalKey则是直接包含这个三个部分，并没有整合成字符串。
+
 // Modules in this directory should keep internal keys wrapped inside
 // the following class instead of plain strings so that we do not
 // incorrectly use string comparisons instead of an InternalKeyComparator.
@@ -218,6 +224,9 @@ class LookupKey {
 inline LookupKey::~LookupKey() {
   if (start_ != space_) delete[] start_;
 }
+
+// 传递给skiplist的key-value，格式为：
+// key_size(Varint32) + key + Seq(7) + ValueType(1) + value_size(Varint32) + value
 
 }  // namespace leveldb
 

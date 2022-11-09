@@ -28,17 +28,22 @@ Status BlockHandle::DecodeFrom(Slice* input) {
   }
 }
 
+// 没看懂
 void Footer::EncodeTo(std::string* dst) const {
   const size_t original_size = dst->size();
   metaindex_handle_.EncodeTo(dst);
   index_handle_.EncodeTo(dst);
+
+  //为何不是original_size + 2 * BlockHandle::kMaxEncodedLength？？？
   dst->resize(2 * BlockHandle::kMaxEncodedLength);  // Padding
+
   PutFixed32(dst, static_cast<uint32_t>(kTableMagicNumber & 0xffffffffu));
   PutFixed32(dst, static_cast<uint32_t>(kTableMagicNumber >> 32));
   assert(dst->size() == original_size + kEncodedLength);
   (void)original_size;  // Disable unused variable warning.
 }
 
+// 没看懂
 Status Footer::DecodeFrom(Slice* input) {
   const char* magic_ptr = input->data() + kEncodedLength - 8;
   const uint32_t magic_lo = DecodeFixed32(magic_ptr);

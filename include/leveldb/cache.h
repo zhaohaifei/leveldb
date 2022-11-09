@@ -31,6 +31,7 @@ class LEVELDB_EXPORT Cache;
 // of Cache uses a least-recently-used eviction policy.
 LEVELDB_EXPORT Cache* NewLRUCache(size_t capacity);
 
+// Cache缓存的是一块块的block？也可以缓存一个个的sstable。
 class LEVELDB_EXPORT Cache {
  public:
   Cache() = default;
@@ -43,6 +44,10 @@ class LEVELDB_EXPORT Cache {
   virtual ~Cache();
 
   // Opaque handle to an entry stored in the cache.
+  // 就是一个kv。
+  // 一个entry就是一个kv。v可以是一个block，也可以是一个sstable。
+  // 如果是block cache，这里的handle就是一个block。
+  // 如果是table cache，这里的handle就是一个table。
   struct Handle {};
 
   // Insert a mapping from key->value into the cache and assign it

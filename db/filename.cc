@@ -126,8 +126,9 @@ Status SetCurrentFile(Env* env, const std::string& dbname,
   std::string manifest = DescriptorFileName(dbname, descriptor_number);
   Slice contents = manifest;
   assert(contents.starts_with(dbname + "/"));
-  contents.remove_prefix(dbname.size() + 1);
+  contents.remove_prefix(dbname.size() + 1);  
   std::string tmp = TempFileName(dbname, descriptor_number);
+  // contents = "MANIFEST-000001\n"
   Status s = WriteStringToFileSync(env, contents.ToString() + "\n", tmp);
   if (s.ok()) {
     s = env->RenameFile(tmp, CurrentFileName(dbname));

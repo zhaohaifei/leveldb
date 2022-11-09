@@ -18,6 +18,8 @@ void PutFixed64(std::string* dst, uint64_t value) {
   dst->append(buf, sizeof(buf));
 }
 
+// 编码的时候移动7的倍数，解码时也会移动7的倍数。
+// 目的是让一个字节的最高位用于标识是否后续字节还有内容。
 char* EncodeVarint32(char* dst, uint32_t v) {
   // Operate on characters as unsigneds
   uint8_t* ptr = reinterpret_cast<uint8_t*>(dst);

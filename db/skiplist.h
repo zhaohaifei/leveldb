@@ -36,6 +36,7 @@
 
 namespace leveldb {
 
+// SkipList访问的其实都是最低一层的链表。更高层的链表仅仅只是索引。
 template <typename Key, class Comparator>
 class SkipList {
  private:
@@ -92,7 +93,7 @@ class SkipList {
 
    private:
     const SkipList* list_;
-    Node* node_;
+    Node* node_; // 迭代器当前指向的节点
     // Intentionally copyable
   };
 
@@ -129,7 +130,8 @@ class SkipList {
   Comparator const compare_;
   Arena* const arena_;  // Arena used for allocations of nodes
 
-  Node* const head_;
+  Node* const head_; // 这个并不是链表的头节点，这只是一个dummy节点。
+                     // head_->next[0]才是链表的头结点。
 
   // Modified only by Insert().  Read racily by readers, but stale
   // values are ok.
@@ -148,6 +150,7 @@ struct SkipList<Key, Comparator>::Node {
 
   // Accessors/mutators for links.  Wrapped in methods so we can
   // add the appropriate barriers as necessary.
+  // 第n层链表的下一个。
   Node* Next(int n) {
     assert(n >= 0);
     // Use an 'acquire load' so that we observe a fully initialized
@@ -173,6 +176,9 @@ struct SkipList<Key, Comparator>::Node {
 
  private:
   // Array of length equal to the node height.  next_[0] is lowest level link.
+  // 这是一个指针数组，数组的元素是Node*
+  // Node* next_[1]相当于声明了包含一个元素的指针数组。其中，next_[0]就是最底层的链表。
+  // 这其实是一种柔性数组，放在struct Node的末尾，是为了实现struct Node的可变长度。
   std::atomic<Node*> next_[1];
 };
 

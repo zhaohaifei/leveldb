@@ -87,11 +87,13 @@ FilterBlockReader::FilterBlockReader(const FilterPolicy* policy,
   num_ = (n - 5 - last_word) / 4;
 }
 
+// block_offset是指在整个sstable中的偏移量
 bool FilterBlockReader::KeyMayMatch(uint64_t block_offset, const Slice& key) {
-  uint64_t index = block_offset >> base_lg_;
+  uint64_t index = block_offset >> base_lg_; // 右移base_lg_，相当于除以2^base_lg_。
   if (index < num_) {
     uint32_t start = DecodeFixed32(offset_ + index * 4);
     uint32_t limit = DecodeFixed32(offset_ + index * 4 + 4);
+    // filter block中的offset数组，指的是相对于这个filter block中的偏移量。
     if (start <= limit && limit <= static_cast<size_t>(offset_ - data_)) {
       Slice filter = Slice(data_ + start, limit - start);
       return policy_->KeyMayMatch(key, filter);

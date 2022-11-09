@@ -17,6 +17,9 @@ class SequentialFile;
 
 namespace log {
 
+// 当给定一个offset时，先计算该offset位于哪一个block中，然后从这一block的开头开始读取。
+// log文件中，每一block的开始位置，一定是一个record header。
+// 假如上一个block的trailer，刚好有7个字节，则只会在这7个字节填充一个header，真实数据长度为0。
 class Reader {
  public:
   // Interface for reporting errors.
@@ -88,13 +91,15 @@ class Reader {
   SequentialFile* const file_;
   Reporter* const reporter_;
   bool const checksum_;
-  char* const backing_store_;
+  char* const backing_store_;  // new出来一个block大小的存储，buffer_的真实存储？
   Slice buffer_;
   bool eof_;  // Last Read() indicated EOF by returning < kBlockSize
+              // file_文件的eof
 
   // Offset of the last record returned by ReadRecord.
   uint64_t last_record_offset_;
   // Offset of the first location past the end of buffer_.
+  // 超过 buffer_ 末尾的第一个位置的偏移量。这个偏移量是在整个file_文件中的偏移量。
   uint64_t end_of_buffer_offset_;
 
   // Offset at which to start looking for the first record to return

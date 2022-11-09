@@ -15,12 +15,12 @@
 namespace leveldb {
 
 class InternalKeyComparator;
-class MemTableIterator;
+class MemTableIterator; 
 
 class MemTable {
  public:
   // MemTables are reference counted.  The initial reference count
-  // is zero and the caller must call Ref() at least once.
+  // is zero and the caller must call Ref() at least once. 
   explicit MemTable(const InternalKeyComparator& comparator);
 
   MemTable(const MemTable&) = delete;
@@ -79,7 +79,8 @@ class MemTable {
   KeyComparator comparator_;
   int refs_;
   Arena arena_;
-  Table table_;
+  Table table_;  // skiplist中的key和value是存放在一起的，
+                 // 格式为 key_size + key + tag(sequence<< 8 | type) + value_size + value
 };
 
 }  // namespace leveldb
