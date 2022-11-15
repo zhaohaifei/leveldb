@@ -21,16 +21,21 @@
 
 namespace leveldb {
 
+// 已阅
+// 在压缩的过程中，生成的一个目标文件最大的大小。（暂定）
 static size_t TargetFileSize(const Options* options) {
   return options->max_file_size;
 }
 
+// 已阅
+// level+2为何是grandparent，难道不应该是grandson吗？
 // Maximum bytes of overlaps in grandparent (i.e., level+2) before we
 // stop building a single file in a level->level+1 compaction.
 static int64_t MaxGrandParentOverlapBytes(const Options* options) {
   return 10 * TargetFileSize(options);
 }
 
+// 已阅
 // Maximum number of bytes in all compacted files.  We avoid expanding
 // the lower level file set of a compaction if it would make the
 // total compaction cover more than this many bytes.
@@ -38,6 +43,7 @@ static int64_t ExpandedCompactionByteSizeLimit(const Options* options) {
   return 25 * TargetFileSize(options);
 }
 
+// 已阅
 static double MaxBytesForLevel(const Options* options, int level) {
   // Note: the result for level zero is not really used since we set
   // the level-0 compaction threshold based on number of files.
@@ -51,11 +57,13 @@ static double MaxBytesForLevel(const Options* options, int level) {
   return result;
 }
 
+// 已阅
 static uint64_t MaxFileSizeForLevel(const Options* options, int level) {
   // We could vary per level to reduce number of files?
   return TargetFileSize(options);
 }
 
+// 已阅
 static int64_t TotalFileSize(const std::vector<FileMetaData*>& files) {
   int64_t sum = 0;
   for (size_t i = 0; i < files.size(); i++) {
@@ -64,6 +72,7 @@ static int64_t TotalFileSize(const std::vector<FileMetaData*>& files) {
   return sum;
 }
 
+// 已阅
 Version::~Version() {
   assert(refs_ == 0);
 
@@ -159,6 +168,7 @@ bool SomeFileOverlapsRange(const InternalKeyComparator& icmp,
   return !BeforeFile(ucmp, largest_user_key, files[index]);
 }
 
+// 在一个level中进行迭代其中的files。一个enrty对应一个file。key是这个file的最大键，value是文件号和文件大小。
 // An internal iterator.  For a given version/level pair, yields
 // information about the files in the level.  For a given entry, key()
 // is the largest key that occurs in the file, and value() is an
@@ -263,6 +273,8 @@ struct Saver {
   std::string* value;
 };
 }  // namespace
+
+// 判断ikey是否和arg中的user_key相同。相同，则将v保存到arg中。
 static void SaveValue(void* arg, const Slice& ikey, const Slice& v) {
   Saver* s = reinterpret_cast<Saver*>(arg);
   ParsedInternalKey parsed_key;
@@ -297,14 +309,15 @@ void Version::ForEachOverlapping(Slice user_key, Slice internal_key, void* arg,
     }
   }
   if (!tmp.empty()) {
-    std::sort(tmp.begin(), tmp.end(), NewestFirst);
+    std::sort(tmp.begin(), tmp.end(), NewestFirst); // 按照number降序排列
     for (uint32_t i = 0; i < tmp.size(); i++) {
       if (!(*func)(arg, 0, tmp[i])) {
         return;
       }
     }
   }
-
+  
+  // from here**********
   // Search other levels.
   for (int level = 1; level < config::kNumLevels; level++) {
     size_t num_files = files_[level].size();

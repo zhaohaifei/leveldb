@@ -15,6 +15,7 @@ namespace leveldb {
 
 class VersionSet;
 
+// 对应一个sstable
 struct FileMetaData {
   FileMetaData() : refs(0), allowed_seeks(1 << 30), file_size(0) {}
 

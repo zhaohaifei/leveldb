@@ -64,6 +64,7 @@ class Version {
     int seek_file_level;
   };
 
+  // 被迭代的内容，将会被合并在一起形成一个新的version。
   // Append to *iters a sequence of iterators that will
   // yield the contents of this Version when merged together.
   // REQUIRES: This version has been saved (see VersionSet::SaveTo)
@@ -150,6 +151,7 @@ class Version {
   Version* prev_;     // Previous version in linked list
   int refs_;          // Number of live refs to this version
 
+  // 这是一个数组，有config::kNumLevels个元素，每个元素是std::vector<FileMetaData*>类型
   // List of files per level
   std::vector<FileMetaData*> files_[config::kNumLevels];
 
