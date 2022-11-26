@@ -21,21 +21,17 @@
 
 namespace leveldb {
 
-// 已阅
-// 在压缩的过程中，生成的一个目标文件最大的大小。（暂定）
+// 在压缩的过程中，生成的一个目标文件最大的大小。
 static size_t TargetFileSize(const Options* options) {
   return options->max_file_size;
 }
 
-// 已阅
-// level+2为何是grandparent，难道不应该是grandson吗？
 // Maximum bytes of overlaps in grandparent (i.e., level+2) before we
 // stop building a single file in a level->level+1 compaction.
 static int64_t MaxGrandParentOverlapBytes(const Options* options) {
   return 10 * TargetFileSize(options);
 }
 
-// 已阅
 // Maximum number of bytes in all compacted files.  We avoid expanding
 // the lower level file set of a compaction if it would make the
 // total compaction cover more than this many bytes.
@@ -43,7 +39,7 @@ static int64_t ExpandedCompactionByteSizeLimit(const Options* options) {
   return 25 * TargetFileSize(options);
 }
 
-// 已阅
+// 每一层的最大字节数，超过这个阈值，则会进行压缩。第0层根据文件数触发压缩。
 static double MaxBytesForLevel(const Options* options, int level) {
   // Note: the result for level zero is not really used since we set
   // the level-0 compaction threshold based on number of files.
@@ -57,13 +53,11 @@ static double MaxBytesForLevel(const Options* options, int level) {
   return result;
 }
 
-// 已阅
 static uint64_t MaxFileSizeForLevel(const Options* options, int level) {
   // We could vary per level to reduce number of files?
   return TargetFileSize(options);
 }
 
-// 已阅
 static int64_t TotalFileSize(const std::vector<FileMetaData*>& files) {
   int64_t sum = 0;
   for (size_t i = 0; i < files.size(); i++) {
@@ -72,7 +66,6 @@ static int64_t TotalFileSize(const std::vector<FileMetaData*>& files) {
   return sum;
 }
 
-// 已阅
 Version::~Version() {
   assert(refs_ == 0);
 
@@ -93,7 +86,7 @@ Version::~Version() {
   }
 }
 
-// 已阅
+// 返回第一个文件，其最大键 >= key
 int FindFile(const InternalKeyComparator& icmp,
              const std::vector<FileMetaData*>& files, const Slice& key) {
   uint32_t left = 0;
@@ -114,7 +107,7 @@ int FindFile(const InternalKeyComparator& icmp,
   return right;
 }
 
-// 已阅
+// user_key比f的最大key都大
 static bool AfterFile(const Comparator* ucmp, const Slice* user_key,
                       const FileMetaData* f) {
   // null user_key occurs before all keys and is therefore never after *f
@@ -122,7 +115,7 @@ static bool AfterFile(const Comparator* ucmp, const Slice* user_key,
           ucmp->Compare(*user_key, f->largest.user_key()) > 0);
 }
 
-// 已阅
+// user_key比f的最小key都小
 static bool BeforeFile(const Comparator* ucmp, const Slice* user_key,
                        const FileMetaData* f) {
   // null user_key occurs after all keys and is therefore never before *f
@@ -130,7 +123,6 @@ static bool BeforeFile(const Comparator* ucmp, const Slice* user_key,
           ucmp->Compare(*user_key, f->smallest.user_key()) < 0);
 }
 
-// 暂阅
 bool SomeFileOverlapsRange(const InternalKeyComparator& icmp,
                            bool disjoint_sorted_files,
                            const std::vector<FileMetaData*>& files,
@@ -157,6 +149,7 @@ bool SomeFileOverlapsRange(const InternalKeyComparator& icmp,
     // Find the earliest possible internal key for smallest_user_key
     InternalKey small_key(*smallest_user_key, kMaxSequenceNumber,
                           kValueTypeForSeek);
+    // 找到第一个文件，其最大值 >= small_key。
     index = FindFile(icmp, files, small_key.Encode());
   }
 
@@ -221,6 +214,7 @@ class Version::LevelFileNumIterator : public Iterator {
   mutable char value_buf_[16];
 };
 
+// file_value中包括文件号和文件大小。TableCache
 static Iterator* GetFileIterator(void* arg, const ReadOptions& options,
                                  const Slice& file_value) {
   TableCache* cache = reinterpret_cast<TableCache*>(arg);
@@ -266,6 +260,7 @@ enum SaverState {
   kDeleted,
   kCorrupt,
 };
+// 如果等于user_key，就把对应的结果存放到value。
 struct Saver {
   SaverState state;
   const Comparator* ucmp;
@@ -317,7 +312,6 @@ void Version::ForEachOverlapping(Slice user_key, Slice internal_key, void* arg,
     }
   }
   
-  // from here**********
   // Search other levels.
   for (int level = 1; level < config::kNumLevels; level++) {
     size_t num_files = files_[level].size();
@@ -338,14 +332,22 @@ void Version::ForEachOverlapping(Slice user_key, Slice internal_key, void* arg,
   }
 }
 
+/*
+  1）对level-0的各个sstable文件，首先找出所有与key重叠的文件。
+     从最新到最旧，将这些文件依次遍历，查看是否包含key。
+  2) 依次遍历其他层（从第一层到第七层）：因为其他层的sstable文件之间没有重叠，
+     因此先使用二分查找，找到第一个最大值大于等于key的第一个文件。
+     如果这个文件的最小值仍大于key，则说明这个文件没有包含key，且这一层也不包含key。
+     如果最小值小于等于key，则遍历这个文件。
+*/
 Status Version::Get(const ReadOptions& options, const LookupKey& k,
                     std::string* value, GetStats* stats) {
   stats->seek_file = nullptr;
   stats->seek_file_level = -1;
 
   struct State {
-    Saver saver;
-    GetStats* stats;
+    Saver saver; // 保存结果
+    GetStats* stats; // 用于保存上一次定位到第几层的第几个文件
     const ReadOptions* options;
     Slice ikey;
     FileMetaData* last_file_read;
@@ -355,6 +357,7 @@ Status Version::Get(const ReadOptions& options, const LookupKey& k,
     Status s;
     bool found;
 
+    // 在一个文件中寻找arg里面的ikey。
     static bool Match(void* arg, int level, FileMetaData* f) {
       State* state = reinterpret_cast<State*>(arg);
 
@@ -367,7 +370,8 @@ Status Version::Get(const ReadOptions& options, const LookupKey& k,
 
       state->last_file_read = f;
       state->last_file_read_level = level;
-
+      
+      // 从f中寻找ikey，并将结果通过SaveValue保存到state->saver。
       state->s = state->vset->table_cache_->Get(*state->options, f->number,
                                                 f->file_size, state->ikey,
                                                 &state->saver, SaveValue);
@@ -411,6 +415,7 @@ Status Version::Get(const ReadOptions& options, const LookupKey& k,
   state.saver.user_key = k.user_key();
   state.saver.value = value;
 
+  // 在所有文件中进行定位ikey。
   ForEachOverlapping(state.saver.user_key, state.ikey, &state, &State::Match);
 
   return state.found ? state.s : Status::NotFound(Slice());
@@ -429,6 +434,8 @@ bool Version::UpdateStats(const GetStats& stats) {
   return false;
 }
 
+// 判断至少两个file是否均包含internal_key。若均包含，则再判断一下这两个file
+// 是否还有引用。若没有引用，则将这两个文件进行merge。
 bool Version::RecordReadSample(Slice internal_key) {
   ParsedInternalKey ikey;
   if (!ParseInternalKey(internal_key, &ikey)) {
@@ -484,6 +491,12 @@ bool Version::OverlapInLevel(int level, const Slice* smallest_user_key,
                                smallest_user_key, largest_user_key);
 }
 
+// [smallest_user_key, largest_user_key]可以简单理解为一个文件f。
+// 首先先判断f是否和第level层有重叠。如果有重叠，只能把f放在level的上一层。
+// 如果没有重叠，则再判断是否level+1层和f有太多的重叠(即，重叠的大小大于一定值)。
+// 如果重叠太多，则也不能把f放在第level层，只能放在level的上一层。如果没有重叠太多，
+// 则说明可以放到level+1层。
+// 再判断是否可以放到level+2层, level+3层...
 int Version::PickLevelForMemTableOutput(const Slice& smallest_user_key,
                                         const Slice& largest_user_key) {
   int level = 0;
@@ -499,6 +512,7 @@ int Version::PickLevelForMemTableOutput(const Slice& smallest_user_key,
       }
       if (level + 2 < config::kNumLevels) {
         // Check that file does not overlap too many grandparent bytes.
+        // 这里的grandparent是指level+2层。
         GetOverlappingInputs(level + 2, &start, &limit, &overlaps);
         const int64_t sum = TotalFileSize(overlaps);
         if (sum > MaxGrandParentOverlapBytes(vset_->options_)) {
@@ -539,6 +553,8 @@ void Version::GetOverlappingInputs(int level, const InternalKey* begin,
       if (level == 0) {
         // Level-0 files may overlap each other.  So check if the newly
         // added file has expanded the range.  If so, restart search.
+        // 例如，level-0层有a，b和c三个文件。若[begin,end]之和a和c有重叠，但a和b本身也有重叠。
+        // 所有，只是挑选出a和c，是不能合并的。因此，这里要把[begin,end]扩大范围。
         if (begin != nullptr && user_cmp->Compare(file_start, user_begin) < 0) {
           user_begin = file_start;
           inputs->clear();

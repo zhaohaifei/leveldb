@@ -59,6 +59,7 @@ bool SomeFileOverlapsRange(const InternalKeyComparator& icmp,
 
 class Version {
  public:
+  // 定位到的一个特定层的特定文件
   struct GetStats {
     FileMetaData* seek_file;
     int seek_file_level;
@@ -70,6 +71,7 @@ class Version {
   // REQUIRES: This version has been saved (see VersionSet::SaveTo)
   void AddIterators(const ReadOptions&, std::vector<Iterator*>* iters);
 
+  // 搜索各个level层的各个sstable文件，寻找key。
   // Lookup the value for key.  If found, store it in *val and
   // return OK.  Else return a non-OK status.  Fills *stats.
   // REQUIRES: lock is not held
@@ -81,6 +83,7 @@ class Version {
   // REQUIRES: lock is held
   bool UpdateStats(const GetStats& stats);
 
+  // 暂不清楚这个函数有什么用
   // Record a sample of bytes read at the specified internal key.
   // Samples are taken approximately once every config::kReadBytesPeriod
   // bytes.  Returns true if a new compaction may need to be triggered.
@@ -92,6 +95,7 @@ class Version {
   void Ref();
   void Unref();
 
+  // Store in "*inputs" all files in "level" that overlap [begin,end]
   void GetOverlappingInputs(
       int level,
       const InternalKey* begin,  // nullptr means before all keys
@@ -119,6 +123,7 @@ class Version {
   friend class Compaction;
   friend class VersionSet;
 
+  // 迭代一个level中的files
   class LevelFileNumIterator;
 
   explicit Version(VersionSet* vset)
@@ -135,7 +140,8 @@ class Version {
   Version& operator=(const Version&) = delete;
 
   ~Version();
-
+  
+  // 生成一个两级迭代器。第一级：迭代一个level中的文件。第二级：迭代文件中的具体内容。
   Iterator* NewConcatenatingIterator(const ReadOptions&, int level) const;
 
   // Call func(arg, level, f) for every file that overlaps user_key in
