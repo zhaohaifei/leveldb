@@ -27,6 +27,8 @@ struct FileMetaData {
   InternalKey largest;   // Largest internal key served by table
 };
 
+// 一个版本的delta增量，一个增量对应Mainfest的一条记录。
+// 一条记录可能包括comaprtor、log_number、删除的文件等内容。
 class VersionEdit {
  public:
   VersionEdit() { Clear(); }
@@ -83,7 +85,8 @@ class VersionEdit {
 
  private:
   friend class VersionSet;
-
+  
+  // level-->fileNo
   typedef std::set<std::pair<int, uint64_t>> DeletedFileSet;
 
   std::string comparator_;
@@ -97,8 +100,10 @@ class VersionEdit {
   bool has_next_file_number_;
   bool has_last_sequence_;
 
+  // level-->InternalKey
   std::vector<std::pair<int, InternalKey>> compact_pointers_;
   DeletedFileSet deleted_files_;
+  // level-->FileMetaData
   std::vector<std::pair<int, FileMetaData>> new_files_;
 };
 

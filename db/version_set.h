@@ -158,6 +158,7 @@ class Version {
   int refs_;          // Number of live refs to this version
 
   // 这是一个数组，有config::kNumLevels个元素，每个元素是std::vector<FileMetaData*>类型
+  // 每一个version，均包含该version内的所有files。不需要与前面的version进行融合即可获取所有的files。（暂定）
   // List of files per level
   std::vector<FileMetaData*> files_[config::kNumLevels];
 
@@ -168,7 +169,7 @@ class Version {
   // Level that should be compacted next and its compaction score.
   // Score < 1 means compaction is not strictly needed.  These fields
   // are initialized by Finalize().
-  double compaction_score_;
+  double compaction_score_; // 根据该层的文件总大小，值越大，compaction_score_越大
   int compaction_level_;
 };
 
@@ -181,6 +182,7 @@ class VersionSet {
 
   ~VersionSet();
 
+  // 这里的descriptor指的是manifest文件的一条记录
   // Apply *edit to the current version to form a new descriptor that
   // is both saved to persistent state and installed as the new
   // current version.  Will release *mu while actually writing to the file.
@@ -286,14 +288,16 @@ class VersionSet {
   bool ReuseManifest(const std::string& dscname, const std::string& dscbase);
 
   void Finalize(Version* v);
-
+  
+  // 从inputs的所有文件中，找到最小的key和最大的key。
   void GetRange(const std::vector<FileMetaData*>& inputs, InternalKey* smallest,
                 InternalKey* largest);
 
   void GetRange2(const std::vector<FileMetaData*>& inputs1,
                  const std::vector<FileMetaData*>& inputs2,
                  InternalKey* smallest, InternalKey* largest);
-
+  
+  // 填充c的其他成员，例如inputs_[1], grandparents_等。
   void SetupOtherInputs(Compaction* c);
 
   // Save current contents to *log
@@ -306,15 +310,15 @@ class VersionSet {
   const Options* const options_;
   TableCache* const table_cache_;
   const InternalKeyComparator icmp_;
-  uint64_t next_file_number_;
+  uint64_t next_file_number_; // 用于manifest的文件号？
   uint64_t manifest_file_number_;
   uint64_t last_sequence_;
   uint64_t log_number_;
   uint64_t prev_log_number_;  // 0 or backing store for memtable being compacted
 
   // Opened lazily
-  WritableFile* descriptor_file_;
-  log::Writer* descriptor_log_;
+  WritableFile* descriptor_file_; // 对应manifest文件
+  log::Writer* descriptor_log_; // 用于写manifest文件的log描述符。
   Version dummy_versions_;  // Head of circular doubly-linked list of versions.
   Version* current_;        // == dummy_versions_.prev_
 
@@ -324,6 +328,7 @@ class VersionSet {
 };
 
 // A Compaction encapsulates information about a compaction.
+// Compaction用于描述一次压缩。
 class Compaction {
  public:
   ~Compaction();
@@ -350,11 +355,16 @@ class Compaction {
   bool IsTrivialMove() const;
 
   // Add all inputs to this compaction as delete operations to *edit.
+  // 合并过后，所有已合并的文件都将要删除，所以这里先将这些文件加入到VersionEdit的删除文件中。
   void AddInputDeletions(VersionEdit* edit);
 
   // Returns true if the information we have available guarantees that
   // the compaction is producing data in "level+1" for which no data exists
   // in levels greater than "level+1".
+  // 当压缩产生的level+1层的数据，其任意key，在后续的level+2，level+3，...层的文件中，均不存在。
+  // 则返回true。（如果key没有位于任何一个后续层的文件的key范围中，则我们有足够证据说明，
+  // 该key不存在于后续层的任何一个文件中。）
+  // Base level for key：该key只存在于这一层，在后续层中，并不存在。（暂定）
   bool IsBaseLevelForKey(const Slice& user_key);
 
   // Returns true iff we should stop building the current output
@@ -373,16 +383,18 @@ class Compaction {
 
   int level_;
   uint64_t max_output_file_size_;
-  Version* input_version_;
+  Version* input_version_; // 只有current_ version才能做压缩
   VersionEdit edit_;
 
+  // 两类输入文件集合，一类是level层的，另一类是level+1层的。
   // Each compaction reads inputs from "level_" and "level_+1"
   std::vector<FileMetaData*> inputs_[2];  // The two sets of inputs
 
   // State used to check for number of overlapping grandparent files
   // (parent == level_ + 1, grandparent == level_ + 2)
+  // 当前压缩所涉及的所有file, 包括level和level+1，其最大key范围，对应重叠的grandparents文件。
   std::vector<FileMetaData*> grandparents_;
-  size_t grandparent_index_;  // Index in grandparent_starts_
+  size_t grandparent_index_;  // Index in grandparent_
   bool seen_key_;             // Some output key has been seen
   int64_t overlapped_bytes_;  // Bytes of overlap between current output
                               // and grandparent files
@@ -393,6 +405,7 @@ class Compaction {
   // is that we are positioned at one of the file ranges for each
   // higher level than the ones involved in this compaction (i.e. for
   // all L >= level_ + 2).
+  // level_ptrs_[i]整体是一个下标index。
   size_t level_ptrs_[config::kNumLevels];
 };
 
