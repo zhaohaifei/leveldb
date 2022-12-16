@@ -1298,7 +1298,7 @@ Iterator* VersionSet::MakeInputIterator(Compaction* c) {
     }
   }
   assert(num <= space);
-  Iterator* result = NewMergingIterator(&icmp_, list, num);
+  Iterator* result = NewMergingIterator(&icmp_, list, num); // 这里还没看
   delete[] list;
   return result;
 }
@@ -1587,7 +1587,7 @@ void Compaction::AddInputDeletions(VersionEdit* edit) {
 // 从level_ + 2层开始，依次遍历该层文件f。找到第一个user_key <= f.largest_key的文件，
 // 并将下标写入到level_ptrs_。如果user_key恰好位于f的key范围中，则当前level_不是user_key的
 // base level。否则，继续遍历下一层。如果所有层通遍历完毕，且user_key没有位于任何一个文件的
-// 范围中，则当前level_是user_key的base level。
+// 范围中，则当前level_是user_key的base level。(暂定。是level_还是level_+1)
 bool Compaction::IsBaseLevelForKey(const Slice& user_key) {
   // Maybe use binary search to find right entry instead of linear search?
   const Comparator* user_cmp = input_version_->vset_->icmp_.user_comparator();

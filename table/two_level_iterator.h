@@ -20,8 +20,9 @@ struct ReadOptions;
 //
 // Uses a supplied function to convert an index_iter value into
 // an iterator over the contents of the corresponding block.
-// 第一级是对blocks的迭代，第二级是对block内的kv进行迭代。
+// 在sstable中创建的两级迭代器，第一级是对blocks的迭代，第二级是对block内的kv进行迭代。
 // 实质第一级就是对(meta) index block的迭代，第二级是对data block的迭代。
+// 在文件集合中创建的两级迭代器，第一级是对文件集合进行遍历，第二级是对一个文件kv进行遍历。
 Iterator* NewTwoLevelIterator(
     Iterator* index_iter,
     Iterator* (*block_function)(void* arg, const ReadOptions& options,

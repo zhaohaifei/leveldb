@@ -158,7 +158,7 @@ class Version {
   int refs_;          // Number of live refs to this version
 
   // 这是一个数组，有config::kNumLevels个元素，每个元素是std::vector<FileMetaData*>类型
-  // 每一个version，均包含该version内的所有files。不需要与前面的version进行融合即可获取所有的files。（暂定）
+  // 每一个version，均包含该version内的所有files。不需要与前面的version进行融合即可获取所有的files。
   // List of files per level
   std::vector<FileMetaData*> files_[config::kNumLevels];
 
@@ -365,10 +365,11 @@ class Compaction {
   // 则返回true。（如果key没有位于任何一个后续层的文件的key范围中，则我们有足够证据说明，
   // 该key不存在于后续层的任何一个文件中。）
   // Base level for key：该key只存在于这一层，在后续层中，并不存在。（暂定）
+  // (这个函数暂时不知道有什么用)
   bool IsBaseLevelForKey(const Slice& user_key);
 
   // Returns true iff we should stop building the current output
-  // before processing "internal_key".
+  // before processing "internal_key".（这个函数暂时不知道有什么用）
   bool ShouldStopBefore(const Slice& internal_key);
 
   // Release the input version for the compaction, once the compaction
@@ -395,9 +396,9 @@ class Compaction {
   // 当前压缩所涉及的所有file, 包括level和level+1，其最大key范围，对应重叠的grandparents文件。
   std::vector<FileMetaData*> grandparents_;
   size_t grandparent_index_;  // Index in grandparent_
-  bool seen_key_;             // Some output key has been seen
+  bool seen_key_;             // Some output key has been seen  // 还不清楚该字段有何意义
   int64_t overlapped_bytes_;  // Bytes of overlap between current output
-                              // and grandparent files
+                              // and grandparent files // 还不清楚该字段有何意义
 
   // State for implementing IsBaseLevelForKey
 
@@ -406,7 +407,7 @@ class Compaction {
   // higher level than the ones involved in this compaction (i.e. for
   // all L >= level_ + 2).
   // level_ptrs_[i]整体是一个下标index。
-  size_t level_ptrs_[config::kNumLevels];
+  size_t level_ptrs_[config::kNumLevels]; // 还不清楚该字段有何意义
 };
 
 }  // namespace leveldb
