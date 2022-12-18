@@ -11,8 +11,11 @@
 namespace leveldb {
 
 namespace {
+// 把多个迭代器合并在一块。
 class MergingIterator : public Iterator {
  public:
+ // children是一个指针数组，里面的元素类型是Iterator*.
+ // children_是一个数组指针，指向一个数组，数组元素是IteratorWrapper。
   MergingIterator(const Comparator* comparator, Iterator** children, int n)
       : comparator_(comparator),
         children_(new IteratorWrapper[n]),
@@ -139,12 +142,13 @@ class MergingIterator : public Iterator {
   // For now we use a simple array since we expect a very small number
   // of children in leveldb.
   const Comparator* comparator_;
-  IteratorWrapper* children_;
+  IteratorWrapper* children_; 
   int n_;
-  IteratorWrapper* current_;
-  Direction direction_;
+  IteratorWrapper* current_; // 当前正位于哪个迭代器
+  Direction direction_; // 每个迭代器移动的方向
 };
 
+// 在所有迭代器中，寻找最小的key。为了确定current_迭代器
 void MergingIterator::FindSmallest() {
   IteratorWrapper* smallest = nullptr;
   for (int i = 0; i < n_; i++) {
@@ -160,6 +164,7 @@ void MergingIterator::FindSmallest() {
   current_ = smallest;
 }
 
+// 在所有迭代器中，寻找最的的key。为了确定current_迭代器
 void MergingIterator::FindLargest() {
   IteratorWrapper* largest = nullptr;
   for (int i = n_ - 1; i >= 0; i--) {

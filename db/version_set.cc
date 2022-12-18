@@ -1298,7 +1298,7 @@ Iterator* VersionSet::MakeInputIterator(Compaction* c) {
     }
   }
   assert(num <= space);
-  Iterator* result = NewMergingIterator(&icmp_, list, num); // 这里还没看
+  Iterator* result = NewMergingIterator(&icmp_, list, num);
   delete[] list;
   return result;
 }
