@@ -344,10 +344,11 @@ Status Version::Get(const ReadOptions& options, const LookupKey& k,
                     std::string* value, GetStats* stats) {
   stats->seek_file = nullptr;
   stats->seek_file_level = -1;
-
+  
+  // State是状态，GetStats是获取统计信息
   struct State {
     Saver saver; // 保存结果
-    GetStats* stats; // 用于保存上一次定位到第几层的第几个文件
+    GetStats* stats;
     const ReadOptions* options;
     Slice ikey;
     FileMetaData* last_file_read;
@@ -784,7 +785,7 @@ VersionSet::VersionSet(const std::string& dbname, const Options* options,
       options_(options),
       table_cache_(table_cache),
       icmp_(*cmp),
-      next_file_number_(2), // 为何是2？
+      next_file_number_(2), // 为何是2？（因为0和1有特殊用法。1用作最初的manifest文件号）
       manifest_file_number_(0),  // Filled by Recover()
       last_sequence_(0),
       log_number_(0),
@@ -904,7 +905,7 @@ Status VersionSet::LogAndApply(VersionEdit* edit, port::Mutex* mu) {
   return s;
 }
 
-// 这个Recover只能从最初开始恢复吗？即只能从刚打开一个db时进行恢复？(好像是的)
+// 这个Recover只能从最初开始恢复，即只能从刚打开一个db时进行恢复。将version相关的信息进行恢复。
 // save_manifest：是否需要保存新的manifest文件。如果重用了原来的，就不需要保存。
 // 如果新切换了一个manifest文件，则这里需要将save_manifest置为true。
 Status VersionSet::Recover(bool* save_manifest) {
@@ -1010,7 +1011,7 @@ Status VersionSet::Recover(bool* save_manifest) {
       prev_log_number = 0;
     }
 
-    MarkFileNumberUsed(prev_log_number); // 为什么不能再使用这两个文件号？
+    MarkFileNumberUsed(prev_log_number);
     MarkFileNumberUsed(log_number);
   }
 
@@ -1609,6 +1610,8 @@ bool Compaction::IsBaseLevelForKey(const Slice& user_key) {
   return true;
 }
 
+// 每压缩一个key，都会判断一下，截止到该key为止，是否已经和grandparents
+// 重叠的大小超过了一定值。
 bool Compaction::ShouldStopBefore(const Slice& internal_key) {
   const VersionSet* vset = input_version_->vset_;
   // Scan to find earliest grandparent file that contains key.

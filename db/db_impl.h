@@ -73,7 +73,7 @@ class DBImpl : public DB {
 
  private:
   friend class DB;
-  struct CompactionState;
+  struct CompactionState; // 压缩状态
   struct Writer;
 
   // Information for a manual compaction
@@ -87,6 +87,8 @@ class DBImpl : public DB {
 
   // Per level compaction stats.  stats_[level] stores the stats for
   // compactions that produced data for the specified "level".
+  // 压缩统计数据。压缩到第level层，就把统计信息存储到stats_[level]。
+  // 而不是第level层压缩，把统计信息存储到stats_[level]。
   struct CompactionStats {
     CompactionStats() : micros(0), bytes_read(0), bytes_written(0) {}
 
@@ -96,7 +98,7 @@ class DBImpl : public DB {
       this->bytes_written += c.bytes_written;
     }
 
-    int64_t micros;
+    int64_t micros; // 本次压缩用了多少微秒
     int64_t bytes_read;
     int64_t bytes_written;
   };
@@ -168,7 +170,7 @@ class DBImpl : public DB {
   TableCache* const table_cache_;
 
   // Lock over the persistent DB state.  Non-null iff successfully acquired.
-  FileLock* db_lock_;
+  FileLock* db_lock_; // 文件锁。用于防止多个进程同时操控一个db。
 
   // State below is protected by mutex_
   port::Mutex mutex_;
@@ -203,7 +205,7 @@ class DBImpl : public DB {
   // paranoid mode就是检查checksum
   Status bg_error_ GUARDED_BY(mutex_);
 
-  CompactionStats stats_[config::kNumLevels] GUARDED_BY(mutex_);
+  CompactionStats stats_[config::kNumLevels] GUARDED_BY(mutex_); // 统计数据
 };
 
 // Sanitize db options.  The caller should delete result.info_log if

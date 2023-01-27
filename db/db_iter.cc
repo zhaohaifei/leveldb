@@ -41,8 +41,12 @@ class DBIter : public Iterator {
   // Which direction is the iterator currently moving?
   // (1) When moving forward, the internal iterator is positioned at
   //     the exact entry that yields this->key(), this->value()
+  //     this->key就是user key。这句话是说，当获取到正确的this->key时，internal iterator
+  //     恰好就位于this->key对应的entry（即带有sequence的kv对上）。
   // (2) When moving backwards, the internal iterator is positioned
   //     just before all entries whose user key == this->key().
+  //     这句话是说，当获取到正确的this->key时，internal iterator是位于所有的entries之前的。
+  //     (因为kReverse遍历时，不把所有entries遍历完，不太容易获取到对应snapshot的this->key)
   enum Direction { kForward, kReverse };
 
   DBIter(DBImpl* db, const Comparator* cmp, Iterator* iter, SequenceNumber s,
@@ -95,7 +99,7 @@ class DBIter : public Iterator {
   inline void ClearSavedValue() {
     if (saved_value_.capacity() > 1048576) {
       std::string empty;
-      swap(empty, saved_value_);
+      swap(empty, saved_value_); // 当capacity太大时，这种方式清空的更快？
     } else {
       saved_value_.clear();
     }
@@ -108,15 +112,15 @@ class DBIter : public Iterator {
 
   DBImpl* db_;
   const Comparator* const user_comparator_;
-  Iterator* const iter_;
-  SequenceNumber const sequence_;
+  Iterator* const iter_; // internal iterator.
+  SequenceNumber const sequence_; // 对应的snapshot.
   Status status_;
   std::string saved_key_;    // == current key when direction_==kReverse
   std::string saved_value_;  // == current raw value when direction_==kReverse
   Direction direction_;
   bool valid_;
   Random rnd_;
-  size_t bytes_until_read_sampling_;
+  size_t bytes_until_read_sampling_; // 有什么用？
 };
 
 inline bool DBIter::ParseKey(ParsedInternalKey* ikey) {

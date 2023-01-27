@@ -3,7 +3,7 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 //
 // WriteBatch::rep_ :=
-//    sequence: fixed64
+//    sequence: fixed64  // 第一个record的sequence。后续的record会自动累加sequence。
 //    count: fixed32
 //    data: record[count]
 // record :=

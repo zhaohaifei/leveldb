@@ -74,6 +74,8 @@ struct DBImpl::CompactionState {
   // will never have to service a snapshot below smallest_snapshot.
   // Therefore if we have seen a sequence number S <= smallest_snapshot,
   // we can drop all entries for the same key with sequence numbers < S.
+  // smallest_snapshot是一个时间点。对于一个相同的key拥有多个sequence，如果最新的
+  // sequence <= smallest_snapshot, 则只保留这个最新的key即可，其他的key都可以drop。
   SequenceNumber smallest_snapshot;
 
   std::vector<Output> outputs;
@@ -289,6 +291,7 @@ void DBImpl::RemoveObsoleteFiles() {
   mutex_.Lock();
 }
 
+// 刚open一个db时，将相关的内存数据进行恢复。
 Status DBImpl::Recover(VersionEdit* edit, bool* save_manifest) {
   mutex_.AssertHeld();
 
@@ -321,7 +324,7 @@ Status DBImpl::Recover(VersionEdit* edit, bool* save_manifest) {
     }
   }
 
-  s = versions_->Recover(save_manifest);
+  s = versions_->Recover(save_manifest); //从manifest中恢复version相关的文件
   if (!s.ok()) {
     return s;
   }
@@ -329,7 +332,7 @@ Status DBImpl::Recover(VersionEdit* edit, bool* save_manifest) {
 
   // Recover from all newer log files than the ones named in the
   // descriptor (new log files may have been added by the previous
-  // incarnation without registering them in the descriptor).
+  // incarnation（前世） without registering them in the descriptor).
   //
   // Note that PrevLogNumber() is no longer used, but we pay
   // attention to it in case we are recovering a database
@@ -362,14 +365,14 @@ Status DBImpl::Recover(VersionEdit* edit, bool* save_manifest) {
 
   // Recover in the order in which the logs were generated
   std::sort(logs.begin(), logs.end());
-  for (size_t i = 0; i < logs.size(); i++) {
+  for (size_t i = 0; i < logs.size(); i++) { // 把imm_也恢复到memtable之中了？
     s = RecoverLogFile(logs[i], (i == logs.size() - 1), save_manifest, edit,
                        &max_sequence);
     if (!s.ok()) {
       return s;
     }
 
-    // The previous incarnation may not have written any MANIFEST
+    // The previous incarnation（前世） may not have written any MANIFEST
     // records after allocating this log number.  So we manually
     // update the file number allocation counter in VersionSet.
     versions_->MarkFileNumberUsed(logs[i]);
@@ -382,6 +385,7 @@ Status DBImpl::Recover(VersionEdit* edit, bool* save_manifest) {
   return Status::OK();
 }
 
+// 将log文件应用于内存表。
 Status DBImpl::RecoverLogFile(uint64_t log_number, bool last_log,
                               bool* save_manifest, VersionEdit* edit,
                               SequenceNumber* max_sequence) {
@@ -454,7 +458,7 @@ Status DBImpl::RecoverLogFile(uint64_t log_number, bool last_log,
 
     if (mem->ApproximateMemoryUsage() > options_.write_buffer_size) {
       compactions++;
-      *save_manifest = true;
+      *save_manifest = true; // 不懂
       status = WriteLevel0Table(mem, edit, nullptr);
       mem->Unref();
       mem = nullptr;
@@ -468,7 +472,7 @@ Status DBImpl::RecoverLogFile(uint64_t log_number, bool last_log,
 
   delete file;
 
-  // See if we should keep reusing the last log file.
+  // See if we should keep reusing the last log file.（是否可重用最后一个log文件）
   if (status.ok() && options_.reuse_logs && last_log && compactions == 0) {
     assert(logfile_ == nullptr);
     assert(log_ == nullptr);
@@ -565,7 +569,7 @@ void DBImpl::CompactMemTable() {
   if (s.ok()) {
     edit.SetPrevLogNumber(0);
     edit.SetLogNumber(logfile_number_);  // Earlier logs no longer needed
-    s = versions_->LogAndApply(&edit, &mutex_);
+    s = versions_->LogAndApply(&edit, &mutex_); // 生成一个新的版本
   }
 
   if (s.ok()) {
@@ -706,7 +710,7 @@ void DBImpl::BackgroundCompaction() {
     CompactMemTable();
     return;
   }
-
+  
   Compaction* c;
   bool is_manual = (manual_compaction_ != nullptr);
   InternalKey manual_end;
@@ -904,9 +908,10 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
   if (snapshots_.empty()) {
     compact->smallest_snapshot = versions_->LastSequence();
   } else {
-    compact->smallest_snapshot = snapshots_.oldest()->sequence_number();
+    compact->smallest_snapshot = snapshots_.oldest()->sequence_number(); // 不懂
   }
 
+  // 多路合并迭代器
   Iterator* input = versions_->MakeInputIterator(compact->compaction);
 
   // Release mutex while we're actually doing the compaction work
@@ -963,6 +968,10 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
         drop = true;  // (A)
       } else if (ikey.type == kTypeDeletion &&
                  ikey.sequence <= compact->smallest_snapshot &&
+                 // 第三个条件保证：这个key删除了，后续其他层的key不会再显现出来。
+                 // （因为这个key本来就应该删除的）
+                 // 如果没有第三个条件，则假如直接drop了当前层的key，后续的get操作可能会
+                 // 访问到其他层的这个key，而这个key本应删除的。
                  compact->compaction->IsBaseLevelForKey(ikey.user_key)) {
         // For this user key:
         // (1) there is no data in higher levels
@@ -1074,6 +1083,9 @@ static void CleanupIteratorState(void* arg1, void* arg2) {
 
 }  // anonymous namespace
 
+// 对mem_, imm_以及磁盘文件均建立Iterator，并将这些Iterator融合成MergingIterator。
+// 用于scan数据（NewIterator）。
+// 遍历的结果是InternalKey。NewDBIterator返回的是用户key。
 Iterator* DBImpl::NewInternalIterator(const ReadOptions& options,
                                       SequenceNumber* latest_snapshot,
                                       uint32_t* seed) {
@@ -1206,7 +1218,7 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* updates) {
   MutexLock l(&mutex_);
   writers_.push_back(&w);
   while (!w.done && &w != writers_.front()) {
-    w.cv.Wait();
+    w.cv.Wait(); // 在等待的过程中释放锁，供其他线程进行write操作。（暂定）
   }
   if (w.done) {
     return w.status;
@@ -1272,6 +1284,7 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* updates) {
 
 // REQUIRES: Writer list must be non-empty
 // REQUIRES: First writer must have a non-null batch
+// 判断当前的batch是否可以顺带着后续的batch一并写入磁盘，如果可以，则just do it。
 WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
   mutex_.AssertHeld();
   assert(!writers_.empty());
@@ -1307,7 +1320,8 @@ WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
       }
 
       // Append to *result
-      if (result == first->batch) {
+      if (result == first->batch) { 
+        // 使用一个临时的变量来append后续的batch，不要污染用户自己的batch变量。
         // Switch to temporary batch instead of disturbing caller's batch
         result = tmp_batch_;
         assert(WriteBatchInternal::Count(result) == 0);
@@ -1487,9 +1501,9 @@ Status DB::Open(const Options& options, const std::string& dbname, DB** dbptr) {
   impl->mutex_.Lock();
   VersionEdit edit;
   // Recover handles create_if_missing, error_if_exists
-  bool save_manifest = false;
+  bool save_manifest = false; // 是否保存manifest文件（即是否产生了新的manifest文件）
   Status s = impl->Recover(&edit, &save_manifest);
-  if (s.ok() && impl->mem_ == nullptr) {
+  if (s.ok() && impl->mem_ == nullptr) { // 说明是第一次open这个数据库
     // Create new log and a corresponding memtable.
     uint64_t new_log_number = impl->versions_->NewFileNumber();
     WritableFile* lfile;

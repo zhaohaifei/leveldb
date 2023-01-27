@@ -17,7 +17,7 @@ class SequentialFile;
 
 namespace log {
 
-// 当给定一个offset时，先计算该offset位于哪一个block中，然后从这一block的开头开始读取。
+// 当给定一个offset时，先计算该offset位于哪一个block中，然后从这一block的开头开始读取。（暂定）
 // log文件中，每一block的开始位置，一定是一个record header。
 // 假如上一个block的trailer，刚好有7个字节，则只会在这7个字节填充一个header，真实数据长度为0。
 class Reader {

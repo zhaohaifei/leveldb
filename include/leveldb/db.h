@@ -32,6 +32,7 @@ class LEVELDB_EXPORT Snapshot {
 };
 
 // A range of keys
+// 左闭右开
 struct LEVELDB_EXPORT Range {
   Range() = default;
   Range(const Slice& s, const Slice& l) : start(s), limit(l) {}

@@ -36,7 +36,9 @@ class TableCache {
   // underlies the returned iterator.  The returned "*tableptr" object is owned
   // by the cache and should not be deleted, and is valid for as long as the
   // returned iterator is live.
-  // 指向某一个sstable的一个kv。
+  // 指向某一个sstable的起始kv。
+  // 可以用这个函数判断sstable是否可用。即如果能正确返回一个迭代器，说明sstable没问题，
+  // 否则sstable出现了毛病。
   Iterator* NewIterator(const ReadOptions& options, uint64_t file_number,
                         uint64_t file_size, Table** tableptr = nullptr);
 

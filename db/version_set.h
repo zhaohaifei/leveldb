@@ -59,7 +59,12 @@ bool SomeFileOverlapsRange(const InternalKeyComparator& icmp,
 
 class Version {
  public:
-  // 定位到的一个特定层的特定文件
+  // 统计数据：
+  // 在遍历一个key的过程中，如果发现某个文件f可能包含key（通过判断key是否在[f.small_key, 
+  // f.largest_key]范围内），就会遍历该文件。此时seek_file==f。
+  // 如果没有找到key，则去下一层寻找。若发现另一个文件f2, 也可能包含key，则遍历f2。
+  // 这时候就发现f1和f2这两个文件是有重叠的, 则后续会对f1.allowed_seeks--. 
+  // 当allowed_seeks减为0，则触发f1的压缩。
   struct GetStats {
     FileMetaData* seek_file;
     int seek_file_level;
@@ -310,11 +315,12 @@ class VersionSet {
   const Options* const options_;
   TableCache* const table_cache_;
   const InternalKeyComparator icmp_;
-  uint64_t next_file_number_; // 用于manifest的文件号？
+  uint64_t next_file_number_; // manifest文件号,.sst文件号和.log文件号共用此字段
   uint64_t manifest_file_number_;
-  uint64_t last_sequence_;
+  uint64_t last_sequence_;  // 最后一个序列号，不是下一个序列号。每次put或delete均会递增。
   uint64_t log_number_;
   uint64_t prev_log_number_;  // 0 or backing store for memtable being compacted
+                              // 0或者对应ImMemTable。
 
   // Opened lazily
   WritableFile* descriptor_file_; // 对应manifest文件
@@ -369,7 +375,8 @@ class Compaction {
   bool IsBaseLevelForKey(const Slice& user_key);
 
   // Returns true iff we should stop building the current output
-  // before processing "internal_key".（这个函数暂时不知道有什么用）
+  // before processing "internal_key".
+  // 用法：在压缩过程中，如果产生的文件太大了，就会另起一个输出文件。
   bool ShouldStopBefore(const Slice& internal_key);
 
   // Release the input version for the compaction, once the compaction

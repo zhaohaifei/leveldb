@@ -11,7 +11,14 @@
 namespace leveldb {
 
 namespace {
-// 把多个迭代器合并在一块。
+// 多路合并迭代器。
+// 把多个子迭代器合并成一个迭代器。这个迭代器用于压缩过程中的多路合并。以两路合并为例。
+// 两路合并是指将两个文件进行合并，大概的思想就是每次选出两个文件中的一个最小值，写入到新的文件。
+// 两个文件就会对应两个子迭代器（I1和I2）。首先MergingIterator.SeekToFirst()，即是将两个
+// 子迭代器都从头开始遍历。并将MergingIterator.current_置为拥有最小key的子迭代器(例如I1)。
+// 压缩合并时，先选出最小的key（即current_->key），之后进行MergingIterator.Next()。
+// Next操作会首先将current_后移一位，然后再从所有的子迭代器中选出拥有最小key的(可能是I1，
+// 也可能是I2)，并将current_指向此迭代器，方便取出下一个最小值。
 class MergingIterator : public Iterator {
  public:
  // children是一个指针数组，里面的元素类型是Iterator*.
@@ -144,7 +151,7 @@ class MergingIterator : public Iterator {
   const Comparator* comparator_;
   IteratorWrapper* children_; 
   int n_;
-  IteratorWrapper* current_; // 当前正位于哪个迭代器
+  IteratorWrapper* current_; // 当前正位于哪个子迭代器
   Direction direction_; // 每个迭代器移动的方向
 };
 
