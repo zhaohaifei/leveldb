@@ -88,6 +88,8 @@ class DBIter : public Iterator {
   void SeekToLast() override;
 
  private:
+  // skipping: 是否跳过当前的this->key所代表的剩下的entries，不再判断是否满足需求。
+  // skip: 当准备跳过this->key所代表的一部分entries时，将iter_->key保存在skip。
   void FindNextUserEntry(bool skipping, std::string* skip);
   void FindPrevUserEntry();
   bool ParseKey(ParsedInternalKey* key);
@@ -115,12 +117,17 @@ class DBIter : public Iterator {
   Iterator* const iter_; // internal iterator.
   SequenceNumber const sequence_; // 对应的snapshot.
   Status status_;
-  std::string saved_key_;    // == current key when direction_==kReverse
+  std::string saved_key_;    // == current key when direction_==kReverse  用于暂存key
   std::string saved_value_;  // == current raw value when direction_==kReverse
   Direction direction_;
   bool valid_;
   Random rnd_;
-  size_t bytes_until_read_sampling_; // 有什么用？
+  size_t bytes_until_read_sampling_; // 直到进行read sample时，读了多少字节。
+                                     // 这是一个随机数值，随机读取了多少个字节后，就采样一次。
+                                     // 采样就是将当前的key进行判断，看看是否多个文件均可能包含该key.
+                                     // 如果存在多个文件包含（说明这多个文件存在重叠），则记录统计一次。
+                                     // 统计的次数到了一定值，就会触发压缩。
+                                     // sample是一种优化，用于进行调度压缩。
 };
 
 inline bool DBIter::ParseKey(ParsedInternalKey* ikey) {
@@ -267,7 +274,7 @@ void DBIter::FindPrevUserEntry() {
       iter_->Prev();
     } while (iter_->Valid());
   }
-
+  
   if (value_type == kTypeDeletion) {
     // End
     valid_ = false;

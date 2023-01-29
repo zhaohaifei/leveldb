@@ -88,11 +88,13 @@ class Version {
   // REQUIRES: lock is held
   bool UpdateStats(const GetStats& stats);
 
-  // 暂不清楚这个函数有什么用
   // Record a sample of bytes read at the specified internal key.
   // Samples are taken approximately once every config::kReadBytesPeriod
   // bytes.  Returns true if a new compaction may need to be triggered.
   // REQUIRES: lock is held
+  // 在当前的key上采样一次。
+  // 采样是看看是否多个文件均可能包含该key。如果存在多个文件可能包含，则记录统计一次。
+  // 统计的次数到了一定值，就会触发压缩。
   bool RecordReadSample(Slice key);
 
   // Reference count management (so Versions do not disappear out from

@@ -1209,6 +1209,7 @@ Status DBImpl::Delete(const WriteOptions& options, const Slice& key) {
   return DB::Delete(options, key);
 }
 
+// 重点看
 Status DBImpl::Write(const WriteOptions& options, WriteBatch* updates) {
   Writer w(&mutex_);
   w.batch = updates;
@@ -1284,7 +1285,8 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* updates) {
 
 // REQUIRES: Writer list must be non-empty
 // REQUIRES: First writer must have a non-null batch
-// 判断当前的batch是否可以顺带着后续的batch一并写入磁盘，如果可以，则just do it。
+// 判断当前的batch是否可以顺带着后续的batch一并写入磁盘。
+// 如果可以，则使用最后一个batch所在的writer进行写操作。
 WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
   mutex_.AssertHeld();
   assert(!writers_.empty());
