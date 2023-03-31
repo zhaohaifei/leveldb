@@ -39,8 +39,8 @@ class Arena {
   char* AllocateNewBlock(size_t block_bytes);
 
   // Allocation state
-  char* alloc_ptr_;
-  size_t alloc_bytes_remaining_;
+  char* alloc_ptr_; // 指向当前块的未使用部分 （详见<<精通leveldb>>）
+  size_t alloc_bytes_remaining_; // 未使用部分的大小
 
   // Array of new[] allocated memory blocks
   std::vector<char*> blocks_;
